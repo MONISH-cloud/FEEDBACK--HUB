@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Feedback Classifier</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        body.dark {
+            background-color: #111827;
+            color: #f9fafb;
+        }
+        
+        .tab-button.active {
+            border-bottom: 4px solid #10b981;
+            color: #047857;
+            font-weight: 700;
+        }
+        
+        body.dark .tab-button.active {
+            color: #34d399;
+        }
+        
+        #feedbacks-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #feedbacks-container::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 4px;
+        }
+        
+        body.dark #feedbacks-container::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+        }
+        
+        .feedback-card {
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        
+        .feedback-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.1), 0 6px 10px -2px rgba(0, 0, 0, 0.04);
+        }
+        
+        body.dark .feedback-card:hover {
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4), 0 6px 10px -2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .analytics-bar-fill {
+            transition: width 0.5s ease-out;
+        }
+        
+        .theme-toggle {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background-color: #d1d5db;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        body.dark .theme-toggle {
+            background-color: #4b5563;
+        }
+        
+        .theme-toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        body.dark .theme-toggle-slider {
+            transform: translateX(30px);
+        }
+        
+        .theme-toggle-slider svg {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen antialiased">
+
+    <!-- Main Container -->
+    <div id="app" class="max-w-4xl mx-auto p-4 md:p-8">
+        
+        <!-- Header & User Info -->
+        <header class="bg-white shadow-xl rounded-2xl p-4 mb-8 dark:bg-gray-800 dark:shadow-gray-900/30">
+            <div class="flex items-center justify-between">
+                <h1 class="text-4xl font-extrabold text-green-600 dark:text-green-400">Classification Pipeline</h1>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-600 dark:text-gray-300 hidden sm:inline">Local ID:</span>
+                        <span id="user-id-display" class="text-xs font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded-xl truncate max-w-[150px] md:max-w-full dark:text-gray-200">local-user-id-123</span>
+                    </div>
+                    <!-- Theme Toggle -->
+                    <div class="flex items-center space-x-2">
+                        <span data-lucide="sun" class="w-4 h-4 text-gray-600 dark:text-yellow-400"></span>
+                        <div class="theme-toggle" id="theme-toggle">
+                            <div class="theme-toggle-slider">
+                                <span data-lucide="moon" class="hidden dark:block text-gray-800"></span>
+                                <span data-lucide="sun" class="block dark:hidden text-yellow-500"></span>
+                            </div>
+                        </div>
+                        <span data-lucide="moon" class="w-4 h-4 text-gray-600 dark:text-indigo-300"></span>
+                    </div>
+                </div>
+            </div>
+            <p class="text-gray-500 dark:text-gray-400 mt-2 text-lg">Submit feedback and export all data when ready for Python processing.</p>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <div class="bg-white rounded-2xl shadow-lg mb-8 p-4 flex justify-around border-b-4 border-gray-100 dark:bg-gray-800 dark:shadow-gray-900/30 dark:border-gray-700">
+            <button id="tab-input-btn" class="tab-button active flex-1 py-3 px-4 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition duration-150 text-base">
+                <span data-lucide="edit" class="inline-block w-5 h-5 mr-2"></span> Submit Feedback
+            </button>
+            <button id="tab-feed-btn" class="tab-button flex-1 py-3 px-4 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition duration-150 text-base">
+                <span data-lucide="message-square" class="inline-block w-5 h-5 mr-2"></span> Feedback Feed
+            </button>
+            <button id="tab-analytics-btn" class="tab-button flex-1 py-3 px-4 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition duration-150 text-base">
+                <span data-lucide="bar-chart-2" class="inline-block w-5 h-5 mr-2"></span> Analytics
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <main id="content-area" class="min-h-[60vh] bg-white p-8 rounded-2xl shadow-xl border border-gray-100 dark:bg-gray-800 dark:shadow-gray-900/30 dark:border-gray-700">
+
+            <!-- 1. Input Feedback Tab -->
+            <div id="tab-input" class="tab-content">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700">Share New Community Insight</h2>
+                <form id="feedback-form" class="space-y-6">
+                    
+                    <!-- Target Organization Input -->
+                    <div>
+                        <label for="target-organization" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Target Organization/Brand</label>
+                        <input list="org-suggestions" id="target-organization" name="target-organization" required
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-green-300 dark:focus:ring-green-700 focus:border-green-500 dark:focus:border-green-400 shadow-sm transition duration-200 dark:bg-gray-700 dark:text-white"
+                            placeholder="e.g., City Council, Acme Corp">
+                        <datalist id="org-suggestions">
+                            <option value="City Council">
+                            <option value="Local Transit Authority">
+                            <option value="Power Utility Company">
+                        </datalist>
+                    </div>
+
+                    <!-- Urgency Input -->
+                    <div>
+                        <label for="feedback-urgency" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Urgency Level</label>
+                        <select id="feedback-urgency" name="feedback-urgency" required
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-green-300 dark:focus:ring-green-700 focus:border-green-500 dark:focus:border-green-400 shadow-sm transition duration-200 bg-white dark:bg-gray-700 dark:text-white">
+                            <option value="Low">Low Priority</option>
+                            <option value="Medium" selected>Medium Priority</option>
+                            <option value="High">High Priority</option>
+                            <option value="Critical">Critical / Immediate Action</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="feedback-text" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Your Raw Feedback Text</label>
+                        <textarea id="feedback-text" rows="6" required
+                                  class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-green-300 dark:focus:ring-green-700 focus:border-green-500 dark:focus:border-green-400 shadow-sm transition duration-200 dark:bg-gray-700 dark:text-white"
+                                  placeholder="E.g., The roads are broken in my neighborhood and need repair."></textarea>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn"
+                            class="w-full bg-green-500 text-white py-4 rounded-xl font-extrabold text-lg shadow-md hover:bg-green-600 hover:shadow-lg transition duration-300 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 flex items-center justify-center dark:bg-green-600 dark:hover:bg-green-700">
+                        <span data-lucide="send" class="w-5 h-5 mr-3"></span> Submit Feedback
+                    </button>
+                </form>
+
+                <div id="message-box" class="mt-6 p-4 rounded-xl text-center font-bold hidden"></div>
+            </div>
+
+            <!-- 2. Feedback Feed Tab -->
+            <div id="tab-feed" class="tab-content hidden">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700">Community Feedback Feed</h2>
+                
+                <!-- File Transfer Controls -->
+                <div class="flex flex-col md:flex-row justify-between space-y-3 md:space-y-0 md:space-x-3 mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
+                    <div class="flex items-start text-sm text-gray-600 dark:text-gray-300">
+                        <span data-lucide="activity" class="w-4 h-4 mr-2 mt-1 text-blue-500 dark:text-blue-400 flex-shrink-0"></span>
+                        <p class="leading-snug">
+                            <strong>Pipeline:</strong> 1. Submit Feedback → 2. <strong>Export All Data</strong> → 3. Run Python Script → 4. Import Results
+                        </p>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-3 justify-end">
+                        <button id="export-btn" 
+                            class="flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-xl hover:bg-blue-600 transition duration-150 shadow-md dark:bg-blue-600 dark:hover:bg-blue-700">
+                            <span data-lucide="download" class="w-4 h-4 mr-2"></span> Export All Data
+                        </button>
+                        
+                        <button id="clear-export-btn" 
+                            class="flex items-center px-4 py-2 bg-red-500 text-white text-sm font-semibold rounded-xl hover:bg-red-600 transition duration-150 shadow-md dark:bg-red-600 dark:hover:bg-red-700">
+                            <span data-lucide="trash-2" class="w-4 h-4 mr-2"></span> Clear Export
+                        </button>
+                        
+                        <button id="import-btn" 
+                            class="flex items-center px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600 transition duration-150 shadow-md dark:bg-green-600 dark:hover:bg-green-700">
+                            <span data-lucide="upload" class="w-4 h-4 mr-2"></span> Import Results
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File Status Display -->
+                <div id="file-status" class="mb-4 p-3 bg-white dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300">
+                    <span data-lucide="file-text" class="w-4 h-4 inline mr-2"></span>
+                    <span id="file-entry-count">0</span> feedback entries ready for export
+                </div>
+                
+                <div id="feedbacks-container" class="space-y-8 max-h-[60vh] overflow-y-auto pr-2">
+                    <p id="loading-feed" class="text-center text-gray-500 dark:text-gray-400 py-10">Loading feedback data...</p>
+                </div>
+            </div>
+
+            <!-- 3. Analytics Tab -->
+            <div id="tab-analytics" class="tab-content hidden">
+                <h2 class="text-2xl font-bold mb-8 text-gray-800 dark:text-gray-100 border-b pb-2 dark:border-gray-700">Feedback Analytics Dashboard</h2>
+                
+                <!-- Sentiment Breakdown -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-2xl shadow-md border border-blue-100 dark:border-blue-800 mb-8">
+                    <h3 class="text-xl font-extrabold text-blue-800 dark:text-blue-300 mb-4 flex items-center">
+                        <span data-lucide="bar-chart-3" class="w-6 h-6 mr-3 text-blue-500 dark:text-blue-400"></span> Sentiment Distribution
+                    </h3>
+                    <div id="sentiment-chart" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <!-- Charts will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Aspect Breakdown -->
+                <div class="bg-green-50 dark:bg-green-900/20 p-6 rounded-2xl shadow-md border border-green-100 dark:border-green-800">
+                    <h3 class="text-xl font-extrabold text-green-800 dark:text-green-300 mb-4 flex items-center">
+                        <span data-lucide="tags" class="w-6 h-6 mr-3 text-green-500 dark:text-green-400"></span> Key Aspect Insights
+                    </h3>
+                    <div id="aspect-list" class="space-y-3">
+                        <p class="text-gray-500 dark:text-gray-400">No data available yet.</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module">
+        // --- CONSTANTS & STATE ---
+        const LOCAL_STORAGE_KEY = 'citizen_feedbacks_local_data_txt';
+        const RAW_TEXTS_KEY = 'raw_texts_content';
+        const THEME_KEY = 'feedhub_theme';
+        const userId = 'local-user-id-123';
+        let feedbacks = [];
+        
+        // --- THEME MANAGEMENT ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+            document.body.classList.toggle('dark', savedTheme === 'dark');
+            updateThemeToggle();
+        }
+        
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark');
+            localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+            updateThemeToggle();
+        }
+        
+        function updateThemeToggle() {
+            const slider = document.querySelector('.theme-toggle-slider');
+            slider.style.transform = document.body.classList.contains('dark') ? 'translateX(30px)' : 'translateX(0)';
+            lucide.createIcons();
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+        function simulateMLClassification(text) {
+            const lowerText = text.toLowerCase();
+            let sentiment = "Neutral";
+            let aspects = [];
+            
+            if (lowerText.includes("excellent") || lowerText.includes("great")) sentiment = "Positive";
+            else if (lowerText.includes("slow") || lowerText.includes("broken")) sentiment = "Negative";
+            
+            if (lowerText.includes("service") || lowerText.includes("staff")) aspects.push("Customer Service");
+            if (lowerText.includes("road") || lowerText.includes("pipe")) aspects.push("Infrastructure");
+            if (aspects.length === 0) aspects.push("General");
+
+            return { sentiment, aspects: [...new Set(aspects)] };
+        }
+
+        function saveFeedbacksToLocal() {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(feedbacks));
+                renderFeedbacks();
+                renderAnalytics();
+            } catch (e) {
+                console.error("Error saving to local storage:", e);
+                showMessage("Failed to save data locally.", "error");
+            }
+        }
+
+        function loadFeedbacksFromLocal() {
+            try {
+                const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error("Error loading from local storage:", e);
+                return [];
+            }
+        }
+        
+        // --- FILE OPERATIONS ---
+        function addFeedbackToFile(newFeedback) {
+            const newEntry = `${newFeedback.id}|${newFeedback.targetOrganization}|${newFeedback.urgency}|${newFeedback.text.replace(/[\n\r]/g, ' ')}`;
+            const existingContent = localStorage.getItem(RAW_TEXTS_KEY) || '';
+            const updatedContent = existingContent ? `${existingContent}\n${newEntry}` : newEntry;
+            
+            localStorage.setItem(RAW_TEXTS_KEY, updatedContent);
+            updateFileStatusDisplay();
+            return updatedContent;
+        }
+
+        function downloadRawTextsFile() {
+            const content = localStorage.getItem(RAW_TEXTS_KEY) || '';
+            if (!content) {
+                showMessage("No feedback data to export.", "error");
+                return;
+            }
+            
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'raw_texts.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const entryCount = content.split('\n').length;
+            showMessage(`raw_texts.txt downloaded with ${entryCount} feedback entries`, "success");
+        }
+
+        function clearRawTextsFile() {
+            localStorage.removeItem(RAW_TEXTS_KEY);
+            updateFileStatusDisplay();
+            showMessage("Raw texts file cleared. Next export will start fresh.", "success");
+        }
+        
+        // --- IMPORT FUNCTION (FIXED) ---
+        async function importFeedbacksFromFile() {
+            const importBtn = document.getElementById('import-btn');
+            try {
+                importBtn.innerHTML = '<span class="animate-spin mr-2" data-lucide="loader"></span> Running Python...';
+                importBtn.disabled = true;
+                
+                const response = await fetch('http://localhost:5000/api/run-import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error('Server not available');
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    processImportedData(result.data);
+                    showMessage(`✅ Successfully imported ${result.count} feedback items!`, "success");
+                } else {
+                    showMessage(`❌ Import failed: ${result.error || 'Unknown error'}`, "error");
+                }
+                
+            } catch (error) {
+                console.error("Import error:", error);
+                showMessage("❌ Could not connect to import service. Make sure the server is running.", "error");
+            } finally {
+                importBtn.innerHTML = '<span data-lucide="upload" class="w-4 h-4 mr-2"></span> Import Results';
+                importBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        function processImportedData(importedData) {
+            console.log("Processing imported data:", importedData);
+            
+            let importedCount = 0;
+            let updatedCount = 0;
+            
+            importedData.forEach(importedItem => {
+                const existingIndex = feedbacks.findIndex(f => f.id === importedItem.id);
+                
+                if (existingIndex !== -1) {
+                    // Update existing feedback
+                    Object.assign(feedbacks[existingIndex], {
+                        sentiment: importedItem.sentiment,
+                        aspects: importedItem.aspects,
+                        text: importedItem.text,
+                        targetOrganization: importedItem.targetOrganization,
+                        urgency: importedItem.urgency
+                    });
+                    updatedCount++;
+                } else {
+                    // Create new feedback entry
+                    feedbacks.unshift({
+                        id: importedItem.id,
+                        text: importedItem.text,
+                        targetOrganization: importedItem.targetOrganization,
+                        urgency: importedItem.urgency,
+                        aspects: importedItem.aspects,
+                        sentiment: importedItem.sentiment,
+                        userId: importedItem.userId || 'system_import',
+                        timestamp: new Date(importedItem.timestamp).getTime() || Date.now(),
+                        likes: [],
+                        comments: [],
+                        imported: true
+                    });
+                    importedCount++;
+                }
+            });
+
+            saveFeedbacksToLocal();
+            console.log(`Import results: ${importedCount} new, ${updatedCount} updated`);
+        }
+
+        function updateFileStatusDisplay() {
+            const content = localStorage.getItem(RAW_TEXTS_KEY) || '';
+            const entryCount = content ? content.split('\n').length : 0;
+            document.getElementById('file-entry-count').textContent = entryCount;
+        }
+
+        // --- DATA INTERACTIONS ---
+        async function postNewFeedback(text) {
+            const targetOrg = document.getElementById('target-organization').value.trim();
+            const urgency = document.getElementById('feedback-urgency').value; 
+
+            if (!targetOrg) {
+                showMessage("Please specify the Target Organization/Brand.", "error");
+                return;
+            }
+
+            const classification = simulateMLClassification(text);
+            const newFeedback = {
+                id: `fdbk-${String(feedbacks.length + 1).padStart(3, '0')}`,
+                text: text,
+                targetOrganization: targetOrg, 
+                urgency: urgency,
+                aspects: classification.aspects,
+                sentiment: classification.sentiment,
+                userId: userId,
+                timestamp: Date.now(), 
+                likes: [],
+                comments: []
+            };
+
+            feedbacks.unshift(newFeedback); 
+            saveFeedbacksToLocal();
+            addFeedbackToFile(newFeedback);
+            
+            showMessage("Feedback submitted and added to export file!", "success");
+            document.getElementById('feedback-form').reset();
+            switchTab('tab-feed'); 
+        }
+        
+        async function toggleLike(feedbackId) {
+            const feedbackIndex = feedbacks.findIndex(f => f.id === feedbackId);
+            if (feedbackIndex === -1) return;
+            
+            const feedback = feedbacks[feedbackIndex];
+            const isLiked = feedback.likes.includes(userId);
+            
+            if (isLiked) {
+                feedback.likes = feedback.likes.filter(id => id !== userId);
+            } else {
+                feedback.likes.push(userId);
+            }
+            saveFeedbacksToLocal();
+        }
+
+        async function postComment(feedbackId, commentText) {
+            if (!commentText.trim()) return;
+            const feedbackIndex = feedbacks.findIndex(f => f.id === feedbackId);
+            if (feedbackIndex === -1) return;
+            
+            if (!feedbacks[feedbackIndex].comments) {
+                feedbacks[feedbackIndex].comments = [];
+            }
+            
+            feedbacks[feedbackIndex].comments.push({
+                userId: userId,
+                text: commentText.trim(),
+                timestamp: Date.now()
+            });
+            saveFeedbacksToLocal();
+        }
+
+        // --- UI RENDERING ---
+        function showMessage(text, type) {
+            const messageBox = document.getElementById('message-box');
+            messageBox.innerHTML = text;
+            messageBox.className = `mt-6 p-4 rounded-xl text-center font-bold ${
+                type === "success" 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+            }`;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => messageBox.classList.add('hidden'), 5000);
+        }
+
+        function getSentimentColor(sentiment) {
+            const colors = {
+                'Positive': 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700',
+                'Negative': 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700',
+                'Neutral': 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700'
+            };
+            return colors[sentiment] || colors['Neutral'];
+        }
+        
+        function getSentimentIcon(sentiment) {
+            const icons = {
+                'Positive': 'smile',
+                'Negative': 'frown',
+                'Neutral': 'meh'
+            };
+            return icons[sentiment] || 'meh';
+        }
+        
+        function getUrgencyClass(urgency) {
+            const classes = {
+                'Critical': 'bg-red-500 text-white dark:bg-red-600',
+                'High': 'bg-orange-500 text-white dark:bg-orange-600',
+                'Medium': 'bg-yellow-400 text-gray-800 dark:bg-yellow-500',
+                'Low': 'bg-green-400 text-white dark:bg-green-500'
+            };
+            return classes[urgency] || classes['Low'];
+        }
+        
+        function getUrgencyIcon(urgency) {
+            const icons = {
+                'Critical': 'alert-triangle',
+                'High': 'zap',
+                'Medium': 'clock',
+                'Low': 'check-circle'
+            };
+            return icons[urgency] || 'check-circle';
+        }
+
+        function createCommentElement(comment) {
+            const date = new Date(comment.timestamp);
+            const safeTimestamp = date.getTime() > 0 ? 
+                `${date.toLocaleTimeString()} ${date.toLocaleDateString()}` : 'Date Unknown';
+
+            return `
+                <div class="p-3 bg-gray-100 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
+                    <div class="flex items-center text-sm mb-1">
+                        <span class="font-bold text-gray-800 dark:text-gray-200 mr-2">${comment.userId === userId ? 'You' : comment.userId}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">${safeTimestamp}</span>
+                    </div>
+                    <p class="text-gray-700 dark:text-gray-300">${comment.text}</p>
+                </div>
+            `;
+        }
+
+        function renderFeedbacks() {
+            const container = document.getElementById('feedbacks-container');
+            const loading = document.getElementById('loading-feed');
+            
+            loading.classList.add('hidden');
+            container.innerHTML = '';
+            
+            if (feedbacks.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 py-10">No feedback posted yet. Be the first!</p>';
+                return;
+            }
+
+            // Sort by timestamp (newest first)
+            feedbacks.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            feedbacks.forEach(feedback => {
+                const sentimentClass = getSentimentColor(feedback.sentiment);
+                const sentimentIcon = getSentimentIcon(feedback.sentiment);
+                const urgencyClass = getUrgencyClass(feedback.urgency);
+                const urgencyIcon = getUrgencyIcon(feedback.urgency);
+                const isLiked = feedback.likes.includes(userId);
+                const likeClass = isLiked ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400';
+                
+                const sortedComments = [...(feedback.comments || [])].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                const displayDate = new Date(feedback.timestamp).toLocaleDateString();
+
+                const card = document.createElement('div');
+                card.className = 'feedback-card bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700';
+                card.innerHTML = `
+                    <div class="mb-4 pb-3 border-b border-gray-200 dark:border-gray-600">
+                        <h3 class="text-xl font-extrabold text-gray-900 dark:text-gray-100 mb-2">${feedback.targetOrganization || 'N/A'} <span class="text-sm text-gray-400 font-medium">(ID: ${feedback.id})</span></h3>
+                        <div class="flex items-center justify-between space-x-3">
+                            <span class="text-xs font-bold px-3 py-1.5 rounded-full border ${sentimentClass} flex items-center shadow-sm">
+                                <span data-lucide="${sentimentIcon}" class="w-4 h-4 mr-1"></span>
+                                ${feedback.sentiment || 'Pending'}
+                            </span>
+                            <span class="text-xs font-bold px-3 py-1.5 rounded-full flex items-center shadow-sm ${urgencyClass}">
+                                <span data-lucide="${urgencyIcon}" class="w-4 h-4 mr-1"></span>
+                                ${feedback.urgency || 'Low'}
+                            </span>
+                            <span class="text-sm text-gray-400 dark:text-gray-500 ml-auto">${displayDate}</span>
+                        </div>
+                    </div>
+
+                    <p class="text-gray-800 dark:text-gray-200 text-lg mb-4 italic leading-relaxed font-medium">"${feedback.text}"</p>
+                    
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        ${(feedback.aspects || []).map(aspect => 
+                            `<span class="text-xs px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded-full font-semibold shadow-inner">#${aspect}</span>`
+                        ).join('')}
+                    </div>
+
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-4 flex items-center justify-between">
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                            Posted by: <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 p-1.5 rounded-lg text-gray-700 dark:text-gray-300 font-semibold">${feedback.userId === userId ? 'You' : feedback.userId}</span>
+                        </div>
+                        <button class="like-btn flex items-center space-x-1 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 dark:active:bg-red-900/30 transition duration-150" data-id="${feedback.id}">
+                            <span data-lucide="heart" class="w-5 h-5 ${likeClass} transition"></span>
+                            <span class="${likeClass} text-sm">${feedback.likes.length}</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 class="text-lg font-bold text-gray-700 dark:text-gray-300 mb-3">Comments (${sortedComments.length})</h4>
+                        <div class="space-y-3 max-h-48 overflow-y-auto comments-list mb-3 pr-2">
+                            ${sortedComments.map(createCommentElement).join('')}
+                        </div>
+                        
+                        <form class="comment-form flex space-x-2" data-id="${feedback.id}">
+                            <input type="text" placeholder="Add a comment..." required
+                                class="flex-grow p-3 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition dark:bg-gray-700 dark:text-white">
+                            <button type="submit" class="bg-blue-500 text-white p-3 rounded-xl hover:bg-blue-600 active:bg-blue-700 transition shadow-md dark:bg-blue-600 dark:hover:bg-blue-700">
+                                <span data-lucide="send" class="w-4 h-4"></span>
+                            </button>
+                        </form>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            
+            // Add event listeners
+            document.querySelectorAll('.like-btn').forEach(button => {
+                button.onclick = () => toggleLike(button.getAttribute('data-id'));
+            });
+
+            document.querySelectorAll('.comment-form').forEach(form => {
+                form.onsubmit = (e) => {
+                    e.preventDefault();
+                    const feedbackId = form.getAttribute('data-id');
+                    const input = form.querySelector('input');
+                    postComment(feedbackId, input.value);
+                    input.value = '';
+                };
+            });
+        }
+        
+        function renderAnalytics() {
+            const sentimentData = { Positive: 0, Negative: 0, Neutral: 0 };
+            const aspectCounts = {};
+            const totalFeedbacks = feedbacks.length;
+
+            if (totalFeedbacks === 0) {
+                document.getElementById('sentiment-chart').innerHTML = '<p class="text-center col-span-3 text-gray-500 dark:text-gray-400 py-4">No data to analyze.</p>';
+                document.getElementById('aspect-list').innerHTML = '<p class="text-gray-500 dark:text-gray-400">No data available yet.</p>';
+                return;
+            }
+
+            feedbacks.forEach(f => {
+                sentimentData[f.sentiment] = (sentimentData[f.sentiment] || 0) + 1;
+                (f.aspects || []).forEach(a => {
+                    aspectCounts[a] = (aspectCounts[a] || 0) + 1;
+                });
+            });
+
+            // Sentiment Chart
+            const chartHtml = Object.entries(sentimentData).map(([sentiment, count]) => {
+                const percentage = totalFeedbacks > 0 ? ((count / totalFeedbacks) * 100).toFixed(1) : 0;
+                const barColor = {
+                    'Positive': 'bg-green-500',
+                    'Negative': 'bg-red-500', 
+                    'Neutral': 'bg-yellow-500'
+                }[sentiment] || 'bg-gray-400';
+                
+                const textColor = {
+                    'Positive': 'text-green-800 dark:text-green-300',
+                    'Negative': 'text-red-800 dark:text-red-300',
+                    'Neutral': 'text-yellow-800 dark:text-yellow-300'
+                }[sentiment] || 'text-gray-700 dark:text-gray-300';
+
+                return `
+                    <div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                        <h4 class="text-lg font-extrabold ${textColor} flex items-center mb-1">
+                            <span data-lucide="${getSentimentIcon(sentiment)}" class="w-4 h-4 mr-2"></span>
+                            ${sentiment}
+                        </h4>
+                        <div class="text-4xl font-extrabold mb-3 dark:text-white">${count}</div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                            <div class="analytics-bar-fill ${barColor} h-3 rounded-full" style="width: ${percentage}%;"></div>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-2">${percentage}% of total</p>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('sentiment-chart').innerHTML = chartHtml;
+
+            // Aspect List
+            const sortedAspects = Object.entries(aspectCounts)
+                .sort(([, countA], [, countB]) => countB - countA);
+
+            const aspectHtml = sortedAspects.map(([aspect, count]) => {
+                const percentage = totalFeedbacks > 0 ? ((count / totalFeedbacks) * 100).toFixed(1) : 0;
+                return `
+                    <div class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 rounded-xl border-l-4 border-green-500 shadow-sm hover:shadow-md transition duration-200">
+                        <span class="font-bold text-gray-800 dark:text-gray-200">${aspect}</span>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 font-bold px-3 py-1 rounded-full">${percentage}%</span>
+                            <span class="text-xl font-extrabold text-green-800 dark:text-green-300">${count}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('aspect-list').innerHTML = aspectHtml;
+            lucide.createIcons();
+        }
+
+        // --- TAB SWITCHING ---
+        function switchTab(targetId) {
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+
+            document.getElementById(targetId).classList.remove('hidden');
+            document.getElementById(`tab-${targetId.split('-')[1]}-btn`).classList.add('active');
+            
+            if (targetId === 'tab-analytics') {
+                renderAnalytics();
+            }
+        }
+
+        // --- INITIALIZATION ---
+        function addDefaultFeedbacksLocal() {
+            feedbacks = loadFeedbacksFromLocal();
+            if (feedbacks.length > 0) return;
+
+            const defaultData = [
+                { 
+                    id: 'fdbk-001', 
+                    text: "The new recycling bins are excellent! Great initiative by the City Council.", 
+                    targetOrganization: "City Council", 
+                    urgency: "Low", 
+                    aspects: ["General"], 
+                    sentiment: "Neutral", 
+                    userId: "sys_admin", 
+                    timestamp: Date.now() - 500000, 
+                    likes: ["sys_admin"], 
+                    comments: [] 
+                },
+                { 
+                    id: 'fdbk-002', 
+                    text: "There is a major water pipe broken on Main Street. Needs immediate attention.", 
+                    targetOrganization: "Power Utility Company", 
+                    urgency: "Critical", 
+                    aspects: ["General"], 
+                    sentiment: "Neutral", 
+                    userId: "local-user-c", 
+                    timestamp: Date.now(), 
+                    likes: [], 
+                    comments: [] 
+                }
+            ];
+            
+            feedbacks = defaultData;
+            feedbacks.forEach(f => {
+                const classification = simulateMLClassification(f.text);
+                f.sentiment = classification.sentiment;
+                f.aspects = classification.aspects;
+            });
+            saveFeedbacksToLocal(); 
+        }
+
+        function localInitialize() {
+            document.getElementById('user-id-display').textContent = userId;
+            addDefaultFeedbacksLocal(); 
+            renderFeedbacks();
+            renderAnalytics();
+            updateFileStatusDisplay();
+        }
+
+        // --- EVENT LISTENERS ---
+        window.onload = function() {
+            initTheme();
+            
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('tab-input-btn').addEventListener('click', () => switchTab('tab-input'));
+            document.getElementById('tab-feed-btn').addEventListener('click', () => switchTab('tab-feed'));
+            document.getElementById('tab-analytics-btn').addEventListener('click', () => switchTab('tab-analytics'));
+
+            document.getElementById('export-btn').onclick = downloadRawTextsFile;
+            document.getElementById('clear-export-btn').onclick = clearRawTextsFile;
+            document.getElementById('import-btn').onclick = importFeedbacksFromFile;
+
+            document.getElementById('feedback-form').onsubmit = function(e) {
+                e.preventDefault();
+                const text = document.getElementById('feedback-text').value;
+                const submitBtn = document.getElementById('submit-btn');
+                
+                submitBtn.innerHTML = '<span class="animate-spin mr-3" data-lucide="loader"></span> Processing...';
+                submitBtn.disabled = true;
+
+                postNewFeedback(text).finally(() => {
+                    submitBtn.innerHTML = '<span data-lucide="send" class="w-5 h-5 mr-3"></span> Submit Feedback';
+                    submitBtn.disabled = false;
+                    lucide.createIcons();
+                });
+            };
+
+            localInitialize();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>

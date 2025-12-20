@@ -1,0 +1,36 @@
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "fdbk-019",
+      "sentiment": "negative",
+      "aspects": [
+        "power supply:neutral",
+        "power:negative",
+        "power is:negative"
+      ],
+      "timestamp": "2025-10-12T22:35:40.338088",
+      "userId": "system_import",
+      "imported": true,
+      "text": "the power is not working properly and the light tower has been damaged",
+      "targetOrganization": "Power Utility Company",
+      "urgency": "Medium",
+      "hasOriginalText": true
+    },
+    {
+      "id": "fdbk-020",
+      "sentiment": "negative",
+      "aspects": [
+        "processor:negative"
+      ],
+      "timestamp": "2025-10-12T22:35:40.338150",
+      "userId": "system_import",
+      "imported": true,
+      "text": "the laptop processor is bad",
+      "targetOrganization": "hp",
+      "urgency": "Medium",
+      "hasOriginalText": true
+    }
+  ]
+}
